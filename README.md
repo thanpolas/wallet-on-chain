@@ -15,8 +15,17 @@ Install the module using NPM:
 npm install @thanpolas/awesome-lib --save
 ```
 
-## Documentation
+## Common Hardhat Tasks
 
+```shell
+npx hardhat accounts
+npx hardhat compile
+npx hardhat clean
+npx hardhat test
+npx hardhat node
+node scripts/sample-script.js
+npx hardhat help
+```
 
 ## Update Node Version
 
