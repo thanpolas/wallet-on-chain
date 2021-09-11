@@ -51,9 +51,11 @@
         "globalSetup": "./test/lib/global-setup.test.js",
         "testTimeout": 10000
     },
-    "dependencies": {},
     "devDependencies": {
+        "@nomiclabs/hardhat-ethers": "^2.0.2",
+        "@nomiclabs/hardhat-waffle": "^2.0.1",
         "@types/jest": "27.0.1",
+        "chai": "^4.3.4",
         "codecov": "^3.8.3",
         "eslint": "7.32.0",
         "eslint-config-airbnb-base": "14.2.1",
@@ -63,11 +65,14 @@
         "eslint-plugin-jsdoc": "36.0.7",
         "eslint-plugin-prettier": "3.4.0",
         "eslint-plugin-security": "1.4.0",
+        "ethereum-waffle": "^3.4.0",
+        "ethers": "^5.4.6",
         "expect": "27.0.6",
+        "hardhat": "^2.6.4",
         "jest": "27.0.6",
         "jest-extended": "0.11.5",
         "jest-junit": "12.2.0",
-        "release-it": "14.11.5",
-        "prettier": "2.3.2"
+        "prettier": "2.3.2",
+        "release-it": "14.11.5"
     }
 }
