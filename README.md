@@ -2,7 +2,7 @@
 
 > A Solidity study that implements a time-locked wallet on-chain.
 
-[![CircleCI](https://circleci.com/gh/thanpolas/[...].svg?style=svg)](https://circleci.com/gh/thanpolas/wallet-on-chain)
+[![CircleCI](https://circleci.com/gh/thanpolas/wallet-on-chain.svg?style=svg)](https://circleci.com/gh/thanpolas/wallet-on-chain)
 [![Discord](https://img.shields.io/discord/847075821276758096?label=discord&color=CBE9F0)](https://discord.gg/GkyEqzJWEY)
 [![Twitter Follow](https://img.shields.io/twitter/follow/thanpolas.svg?label=thanpolas&style=social)](https://twitter.com/thanpolas)
 
