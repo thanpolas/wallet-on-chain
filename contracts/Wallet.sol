@@ -16,6 +16,9 @@ contract Wallet {
     // Store the last withdraw timestamp for each address
     mapping(address => uint256) private lastWithdrawTimestamp;
 
+    mapping(address => uint256) private whitelistMap;
+    address[] public whitelistArray;
+
     // Chainlink ETH/USD Price feed.
     AggregatorV3Interface private priceFeed;
     // Define the oracle price decimals
@@ -71,6 +74,14 @@ contract Wallet {
         _;
     }
 
+    modifier onlyWhitelist() {
+        require(
+            _isInArray(whitelistArray, msg.sender),
+            "Not allowed to make this call"
+        );
+        _;
+    }
+
     // Get the ethereum balance of this contract
     function getBalance() public view returns (uint256) {
         return address(this).balance;
@@ -78,7 +89,10 @@ contract Wallet {
 
     // Receive the daily alloawance
     function receiveAllowance() public payable onlyPayees returns (bool) {
-        require(_isOncePerDay(msg.sender), "Can only withdraw once every 24h");
+        require(
+            _haveDaysPassed(lastWithdrawTimestamp[msg.sender], 1 days),
+            "Can only withdraw once every 24h"
+        );
         lastWithdrawTimestamp[msg.sender] = block.timestamp;
 
         uint256 ethUsdPrice;
@@ -102,9 +116,58 @@ contract Wallet {
         payee1 = _recipient;
     }
 
-    // Determines if 24h have passed since last withdrawal.
-    function _isOncePerDay(address payee) private view returns (bool) {
-        if (lastWithdrawTimestamp[payee] > (block.timestamp - 1 days)) {
+    // Will add an address to the whitelist
+    function addWhitelist(address payable _recipient) public onlyOwner {
+        require(
+            !_isInArray(whitelistArray, _recipient),
+            "Address already whitelisted"
+        );
+
+        whitelistArray.push(_recipient);
+        whitelistMap[_recipient] = block.timestamp;
+    }
+
+    // Will remove an address from the whitelist
+    function removeWhitelist(address payable _recipient) public onlyOwner {
+        require(
+            _isInArray(whitelistArray, _recipient),
+            "Address not in whitelist"
+        );
+
+        _removeFromArray(whitelistArray, _recipient);
+        whitelistMap[_recipient] = 0;
+    }
+
+    // Will emergency withdraw for all funds to a whitelist address
+    function emergencyWithdraw(address payable _recipient)
+        public
+        onlyWhitelist
+    {
+        require(
+            _isInArray(whitelistArray, _recipient),
+            "Address not in whitelist"
+        );
+
+        require(
+            _haveDaysPassed(whitelistMap[msg.sender], 12 days),
+            "Can only emergency withdraw 12 days after whitelist"
+        );
+
+        uint256 availableBalance = getBalance();
+
+        (bool sent, bytes memory data) = _recipient.call{
+            value: availableBalance
+        }("");
+        require(sent, "Failed to send Ether");
+    }
+
+    // Determines if x many time have passed since provided timestamp.
+    function _haveDaysPassed(uint256 timestamp, uint256 timePassed)
+        private
+        view
+        returns (bool)
+    {
+        if (timestamp > (block.timestamp - timePassed)) {
             return false;
         }
         return true;
@@ -128,6 +191,38 @@ contract Wallet {
         //     uint80 answeredInRound
         // ) = priceFeed.latestRoundData();
         // return price;
+    }
+
+    // Will remove an address from an array of addresses, if found.
+    function _removeFromArray(
+        address[] storage addresses, // what does "storage" do here?
+        address addressToRemove
+    ) private returns (address[] memory) {
+        uint256 lastItemIndex = addresses.length - 1;
+
+        for (uint256 i = 0; i < lastItemIndex; i++) {
+            if (addresses[i] == addressToRemove) {
+                addresses[i] = addresses[lastItemIndex];
+                break;
+            }
+        }
+
+        addresses.pop();
+
+        return addresses;
+    }
+
+    function _isInArray(address[] memory addresses, address addressToCheck)
+        private
+        pure
+        returns (bool)
+    {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            if (addresses[i] == addressToCheck) {
+                return true;
+            }
+        }
+        return false;
     }
 
     receive() external payable {
