@@ -211,8 +211,12 @@ describe('Wallet', function () {
         });
       });
 
-      await this.wallet.connect(this.random1).receiveAllowance();
+      const oldBalance = await this.random1.getBalance();
+      const res = await this.wallet.connect(this.random1).receiveAllowance();
+      await res.wait();
+      const newBalance = await this.random1.getBalance();
 
+      expect(ethers.BigNumber.from(oldBalance).lt(newBalance)).to.equal(true);
       return endPromise;
     });
     it('New payee AND owner will be allowed to get daily limit amount', async function () {

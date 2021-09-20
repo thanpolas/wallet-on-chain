@@ -105,7 +105,9 @@ contract Wallet {
 
         emit Withdrew(msg.sender, dailyAllowance);
 
-        (bool sent, bytes memory data) = owner.call{value: dailyAllowance}("");
+        (bool sent, bytes memory data) = msg.sender.call{value: dailyAllowance}(
+            ""
+        );
         require(sent, "Failed to send Ether");
 
         return true;
