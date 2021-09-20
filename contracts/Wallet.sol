@@ -33,12 +33,6 @@ contract Wallet {
         address _oracle,
         uint8 _oracleDecimals
     ) {
-        console.log(
-            "Deploying a wallet with owner and limit:",
-            _owner,
-            _dailyLimitUsd,
-            _oracle
-        );
         owner = _owner;
         dailyLimitUsd = _dailyLimitUsd;
         priceFeed = AggregatorV3Interface(_oracle);
@@ -77,10 +71,10 @@ contract Wallet {
 
         require(getBalance() > dailyAllowance, "Insufficient ETH balance");
 
+        emit Withdrew(owner, dailyAllowance);
+
         (bool sent, bytes memory data) = owner.call{value: dailyAllowance}("");
         require(sent, "Failed to send Ether");
-
-        emit Withdrew(owner, dailyAllowance);
 
         return true;
     }
