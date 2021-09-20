@@ -78,16 +78,17 @@ describe('Wallet', function () {
         ORACLE_DECIMALS
       );
       await wallet.deployed();
-      this.wallet = wallet;
-      this.owner = owner;
-      this.random1 = random1;
-    });
-    it('will send daily allowance', async function () {
+
       await this.owner.sendTransaction({
         to: this.wallet.address,
         value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
       });
 
+      this.wallet = wallet;
+      this.owner = owner;
+      this.random1 = random1;
+    });
+    it('will send daily allowance', async function () {
       // Wait for withdrew event and compare parameters.
       const endPromise = new Promise((resolve) => {
         this.wallet.once('Withdrew', (to, value) => {
@@ -104,11 +105,6 @@ describe('Wallet', function () {
       return endPromise;
     });
     it('will not send daily allowance twice', async function () {
-      await this.owner.sendTransaction({
-        to: this.wallet.address,
-        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
-      });
-
       const res = await this.wallet.receiveAllowance();
       await res.wait();
 
@@ -126,10 +122,6 @@ describe('Wallet', function () {
       expect(errorHappened).to.be.true;
     });
     it('will not send daily allowance to non owner', async function () {
-      await this.owner.sendTransaction({
-        to: this.wallet.address,
-        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
-      });
       let errorHappened = false;
 
       try {
