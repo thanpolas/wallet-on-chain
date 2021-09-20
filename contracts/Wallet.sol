@@ -47,13 +47,6 @@ contract Wallet {
         dailyLimitUsdExp = _dailyLimitUsd * oracleDecimalsExp;
     }
 
-    // This contract only defines a modifier but does not use
-    // it: it will be used in derived contracts.
-    // The function body is inserted where the special symbol
-    // `_;` in the definition of a modifier appears.
-    // This means that if the owner calls this function, the
-    // function is executed and otherwise, an exception is
-    // thrown.
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function.");
         _;
@@ -141,15 +134,7 @@ contract Wallet {
     }
 
     // Will emergency withdraw for all funds to a whitelist address
-    function emergencyWithdraw(address payable _recipient)
-        public
-        onlyWhitelist
-    {
-        require(
-            _isInArray(whitelistArray, _recipient),
-            "Address not in whitelist"
-        );
-
+    function emergencyWithdraw() public onlyWhitelist {
         require(
             _haveDaysPassed(whitelistMap[msg.sender], 12 days),
             "Can only emergency withdraw 12 days after whitelist"
@@ -157,7 +142,7 @@ contract Wallet {
 
         uint256 availableBalance = getBalance();
 
-        (bool sent, bytes memory data) = _recipient.call{
+        (bool sent, bytes memory data) = msg.sender.call{
             value: availableBalance
         }("");
         require(sent, "Failed to send Ether");
