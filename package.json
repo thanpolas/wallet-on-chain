@@ -22,7 +22,7 @@
     },
     "scripts": {
         "test": "npm run eslint && npm run jest",
-        "eslint": "eslint src test",
+        "eslint": "eslint test",
         "jest": "hardhat test",
         "release": "release-it --ci",
         "release:minor": "release-it minor --ci",
