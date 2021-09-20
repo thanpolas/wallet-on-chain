@@ -79,8 +79,8 @@ describe('Wallet', function () {
       );
       await wallet.deployed();
 
-      await this.owner.sendTransaction({
-        to: this.wallet.address,
+      await owner.sendTransaction({
+        to: wallet.address,
         value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
       });
 
@@ -135,6 +135,35 @@ describe('Wallet', function () {
       }
 
       expect(errorHappened).to.be.true;
+    });
+
+    it('will not send daily allowance before day ends', async function () {
+      const res = await this.wallet.receiveAllowance();
+      await res.wait();
+
+      await ethers.provider.send('evm_increaseTime', [72000]); // +20 hours
+
+      let errorHappened = false;
+      try {
+        const res2 = await this.wallet.receiveAllowance();
+        await res2.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Can only withdraw once every 24h'"
+        );
+      }
+
+      expect(errorHappened).to.be.true;
+    });
+    it('will send daily allowance after 24hrs day ends', async function () {
+      const res = await this.wallet.receiveAllowance();
+      await res.wait();
+
+      await ethers.provider.send('evm_increaseTime', [86401]); // +24 hours, 1sec
+
+      const res2 = await this.wallet.receiveAllowance();
+      await res2.wait();
     });
   });
 });
