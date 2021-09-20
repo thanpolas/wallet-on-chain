@@ -8,30 +8,43 @@ contract Wallet {
     // The owner of the contract
     address payable public owner;
     // Sets the daily withdrawal limit of this wallet
-    uint256 public daily_limit_usd;
+    uint32 public dailyLimitUsd;
+    uint256 private dailyLimitUsdExp;
     // Store the last withdraw timestamp
-    uint256 private last_withdraw_timestamp;
+    uint256 private lastWithdrawTimestamp;
 
     // Chainlink ETH/USD Price feed.
-    AggregatorV3Interface internal priceFeed;
+    AggregatorV3Interface private priceFeed;
+    // Define the oracle price decimals
+    uint8 private oracleDecimals;
+    // Exponent of oracle decimals for base 10
+    uint256 private oracleDecimalsExp;
+    // Exponent of eth decimals for base 10
+    uint256 private ethDecimalsExp = 100000000000000000;
 
     // Event when funds received
     event Received(address, uint256);
+    // Withdraw funds event
+    event Withdrew(address, uint256);
 
     constructor(
         address payable _owner,
-        uint256 _daily_limit_usd,
-        address _oracle
+        uint32 _dailyLimitUsd,
+        address _oracle,
+        uint8 _oracleDecimals
     ) {
         console.log(
             "Deploying a wallet with owner and limit:",
             _owner,
-            _daily_limit_usd,
+            _dailyLimitUsd,
             _oracle
         );
         owner = _owner;
-        daily_limit_usd = _daily_limit_usd;
+        dailyLimitUsd = _dailyLimitUsd;
         priceFeed = AggregatorV3Interface(_oracle);
+        oracleDecimals = _oracleDecimals;
+        oracleDecimalsExp = 10**_oracleDecimals;
+        dailyLimitUsdExp = _dailyLimitUsd * oracleDecimalsExp;
     }
 
     // This contract only defines a modifier but does not use
@@ -52,18 +65,52 @@ contract Wallet {
     }
 
     // Receive the daily alloawance
-    function getAllowance() public onlyOwner returns (bool) {
-        require(_isOncePerDay(), "Can withdraw once every 24h");
+    function receiveAllowance() public payable onlyOwner returns (bool) {
+        require(_isOncePerDay(), "Can only withdraw once every 24h");
+        lastWithdrawTimestamp = block.timestamp;
+
+        uint256 ethUsdPrice;
+        uint256 dailyAllowance;
+
+        ethUsdPrice = uint256(_getLatestPrice());
+        dailyAllowance = _calculateAllowance(ethUsdPrice);
+
+        require(getBalance() > dailyAllowance, "Insufficient ETH balance");
+
+        (bool sent, bytes memory data) = owner.call{value: dailyAllowance}("");
+        require(sent, "Failed to send Ether");
+
+        emit Withdrew(owner, dailyAllowance);
 
         return true;
     }
 
     // Determines if 24h have passed since last withdrawal.
     function _isOncePerDay() private view returns (bool) {
-        if (last_withdraw_timestamp > (block.timestamp - 1 days)) {
+        if (lastWithdrawTimestamp > (block.timestamp - 1 days)) {
             return false;
         }
         return true;
+    }
+
+    function _calculateAllowance(uint256 price) private view returns (uint256) {
+        return (ethDecimalsExp * dailyLimitUsdExp) / price;
+    }
+
+    /**
+     * Returns the latest price
+     */
+    function _getLatestPrice() private pure returns (int) {
+        // stub ther return until I figure out oracles
+        return 315539418212;
+        // (
+        //     uint80 roundID,
+        //     int price,
+        //     uint startedAt,
+        //     uint timeStamp,
+        //     uint80 answeredInRound
+        // ) = priceFeed.latestRoundData();
+        // return price;
     }
 
     receive() external payable {

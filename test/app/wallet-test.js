@@ -1,5 +1,13 @@
+/* eslint-disable no-unused-expressions */
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
+
+// Kovan ETH/USD
+const ORACLE_ADDRESS = '0x9326BFA02ADD2366b30bacB125260Af641031331';
+const ORACLE_DECIMALS = 8;
+const ORACLE_ETH_USD = 315539418212;
+const DAILY_LIMIT_USD = 200;
+const EXPECTED_DAILY_LIMIT = 6338352308985590;
 
 describe('Wallet', function () {
   describe('Surface Tests', function () {
@@ -7,7 +15,12 @@ describe('Wallet', function () {
       const [owner] = await ethers.getSigners();
 
       const Wallet = await ethers.getContractFactory('Wallet');
-      const wallet = await Wallet.deploy(owner.address, 500000000);
+      const wallet = await Wallet.deploy(
+        owner.address,
+        DAILY_LIMIT_USD,
+        ORACLE_ADDRESS,
+        ORACLE_DECIMALS
+      );
       await wallet.deployed();
 
       this.wallet = wallet;
@@ -53,18 +66,83 @@ describe('Wallet', function () {
       return endPromise;
     });
   });
-  describe('getAllowance() testing', function () {
+  describe.only('getAllowance() testing', function () {
     beforeEach(async function () {
-      const [owner] = await ethers.getSigners();
+      const [owner, random1] = await ethers.getSigners();
 
       const Wallet = await ethers.getContractFactory('Wallet');
-      const wallet = await Wallet.deploy(owner.address, 500000000);
+      const wallet = await Wallet.deploy(
+        owner.address,
+        DAILY_LIMIT_USD,
+        ORACLE_ADDRESS,
+        ORACLE_DECIMALS
+      );
       await wallet.deployed();
       this.wallet = wallet;
+      this.owner = owner;
+      this.random1 = random1;
     });
-    it.only('will send daily allowance', async function () {
-      const res = await this.wallet.getAllowance();
-      console.log('res:', res);
+    it('will send daily allowance', async function () {
+      await this.owner.sendTransaction({
+        to: this.wallet.address,
+        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
+      });
+
+      // Wait for withdrew event and compare parameters.
+      const endPromise = new Promise((resolve) => {
+        this.wallet.once('Withdrew', (to, value) => {
+          expect(
+            ethers.BigNumber.from(value).eq(EXPECTED_DAILY_LIMIT)
+          ).to.equal(true);
+          expect(to).to.equal(this.owner.address);
+          resolve();
+        });
+      });
+
+      await this.wallet.receiveAllowance();
+
+      return endPromise;
+    });
+    it('will not send daily allowance twice', async function () {
+      await this.owner.sendTransaction({
+        to: this.wallet.address,
+        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
+      });
+
+      const res = await this.wallet.receiveAllowance();
+      await res.wait();
+
+      let errorHappened = false;
+      try {
+        const res2 = await this.wallet.receiveAllowance();
+        await res2.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Can only withdraw once every 24h'"
+        );
+      }
+
+      expect(errorHappened).to.be.true;
+    });
+    it('will not send daily allowance to non owner', async function () {
+      await this.owner.sendTransaction({
+        to: this.wallet.address,
+        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
+      });
+      let errorHappened = false;
+
+      try {
+        const res = await this.wallet.connect(this.random1).receiveAllowance();
+        await res.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Only owner can call this function.'"
+        );
+      }
+
+      expect(errorHappened).to.be.true;
     });
   });
 });
