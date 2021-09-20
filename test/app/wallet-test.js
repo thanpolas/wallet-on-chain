@@ -131,7 +131,7 @@ describe('Wallet', function () {
       } catch (ex) {
         errorHappened = true;
         expect(ex.message).to.equal(
-          "VM Exception while processing transaction: reverted with reason string 'Only owner can call this function.'"
+          "VM Exception while processing transaction: reverted with reason string 'Only owner or payee can call this function.'"
         );
       }
 
