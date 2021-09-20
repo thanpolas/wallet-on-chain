@@ -8,6 +8,7 @@ extends:
   - plugin:jsdoc/recommended
   - plugin:security/recommended
   - plugin:prettier/recommended
+  - plugic:mocha/recommended
 
 plugins:
   - jsdoc
