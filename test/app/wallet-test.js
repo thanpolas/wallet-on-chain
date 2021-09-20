@@ -376,4 +376,133 @@ describe('Wallet', function () {
       expect(errorHappened).to.be.true;
     });
   });
+
+  describe('Whitelist testing', function () {
+    beforeEach(async function () {
+      const [owner, random1, random2] = await ethers.getSigners();
+
+      const Wallet = await ethers.getContractFactory('Wallet');
+      const wallet = await Wallet.deploy(
+        owner.address,
+        DAILY_LIMIT_USD,
+        ORACLE_ADDRESS,
+        ORACLE_DECIMALS
+      );
+      await wallet.deployed();
+
+      await owner.sendTransaction({
+        to: wallet.address,
+        value: ethers.utils.parseEther('1.0'), // Sends exactly 1.0 ether
+      });
+
+      this.wallet = wallet;
+      this.owner = owner;
+      this.random1 = random1;
+      this.random2 = random2;
+    });
+    it('will add a whitelist address', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      const whitelistAddress = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress).to.equal(this.random1.address);
+    });
+    it('will add two whitelist addresses', async function () {
+      const res1 = await this.wallet.addWhitelist(this.random1.address);
+      await res1.wait();
+      const res2 = await this.wallet.addWhitelist(this.random2.address);
+      await res2.wait();
+
+      const whitelistAddress1 = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress1).to.equal(this.random1.address);
+      const whitelistAddress2 = await this.wallet.whitelistArray(1);
+      expect(whitelistAddress2).to.equal(this.random2.address);
+    });
+    it('will add two whitelist addresses, remove first and retain second', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      await this.wallet.addWhitelist(this.random2.address);
+      await this.wallet.removeWhitelist(this.random1.address);
+      const whitelistAddress2 = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress2).to.equal(this.random2.address);
+    });
+
+    it('Whitelist address will not be able to withdraw immediately', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      const whitelistAddress = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress).to.equal(this.random1.address);
+
+      let errorHappened = false;
+      try {
+        const res3 = await this.wallet
+          .connect(this.random1)
+          .emergencyWithdraw();
+        await res3.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Can only emergency withdraw 12 days after whitelist'"
+        );
+      }
+      expect(errorHappened).to.be.true;
+    });
+    it('Owner address will not be able to withdraw at all', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      const whitelistAddress = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress).to.equal(this.random1.address);
+
+      let errorHappened = false;
+      try {
+        const res3 = await this.wallet.emergencyWithdraw();
+        await res3.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Not allowed to make this call'"
+        );
+      }
+      expect(errorHappened).to.be.true;
+    });
+
+    it('Whitelist address will be able to withdraw after 12 days', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      const whitelistAddress = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress).to.equal(this.random1.address);
+
+      await ethers.provider.send('evm_increaseTime', [1036801]); // +12 days, 1sec
+
+      const oldBalance = await this.random1.getBalance();
+
+      const res3 = await this.wallet.connect(this.random1).emergencyWithdraw();
+      await res3.wait();
+
+      const newBalance = await this.random1.getBalance();
+
+      expect(ethers.BigNumber.from(oldBalance).lt(newBalance)).to.equal(true);
+
+      const balance = await this.wallet.getBalance();
+
+      expect(ethers.BigNumber.from(balance).eq('0')).to.equal(true);
+    });
+    it('Whitelist address that has been removed will not be able to withdraw after 12 days', async function () {
+      await this.wallet.addWhitelist(this.random1.address);
+      const whitelistAddress = await this.wallet.whitelistArray(0);
+      expect(whitelistAddress).to.equal(this.random1.address);
+
+      await ethers.provider.send('evm_increaseTime', [1036801]); // +12 days, 1sec
+
+      await this.wallet.removeWhitelist(this.random1.address);
+
+      let errorHappened = false;
+      try {
+        const res3 = await this.wallet
+          .connect(this.random1)
+          .emergencyWithdraw();
+        await res3.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Not allowed to make this call'"
+        );
+      }
+      expect(errorHappened).to.be.true;
+    });
+  });
 });
