@@ -2,7 +2,6 @@
     "private": false,
     "name": "solidity-wallet",
     "version": "0.0.0",
-    "main": "./src/",
     "description": "A Solidity study that implements a time-locked wallet on-chain.",
     "homepage": "https://github.com/thanpolas/wallet-on-chain",
     "bugs": "https://github.com/thanpolas/wallet-on-chain/issues",
