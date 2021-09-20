@@ -7,11 +7,14 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 contract Wallet {
     // The owner of the contract
     address payable public owner;
+    // Alternative payees, to be allowed to withdraw funds.
+    address payable public payee1;
+
     // Sets the daily withdrawal limit of this wallet
     uint32 public dailyLimitUsd;
     uint256 private dailyLimitUsdExp;
-    // Store the last withdraw timestamp
-    uint256 private lastWithdrawTimestamp;
+    // Store the last withdraw timestamp for each address
+    mapping(address => uint256) private lastWithdrawTimestamp;
 
     // Chainlink ETH/USD Price feed.
     AggregatorV3Interface private priceFeed;
@@ -52,6 +55,21 @@ contract Wallet {
         require(msg.sender == owner, "Only owner can call this function.");
         _;
     }
+    modifier onlyPayees() {
+        bool allowed = false;
+        if (msg.sender == owner) {
+            allowed = true;
+        }
+        if (msg.sender == payee1) {
+            allowed = true;
+        }
+        if (msg.sender == address(0)) {
+            allowed = false;
+        }
+
+        require(allowed, "Only owner or payee can call this function.");
+        _;
+    }
 
     // Get the ethereum balance of this contract
     function getBalance() public view returns (uint256) {
@@ -59,9 +77,9 @@ contract Wallet {
     }
 
     // Receive the daily alloawance
-    function receiveAllowance() public payable onlyOwner returns (bool) {
-        require(_isOncePerDay(), "Can only withdraw once every 24h");
-        lastWithdrawTimestamp = block.timestamp;
+    function receiveAllowance() public payable onlyPayees returns (bool) {
+        require(_isOncePerDay(msg.sender), "Can only withdraw once every 24h");
+        lastWithdrawTimestamp[msg.sender] = block.timestamp;
 
         uint256 ethUsdPrice;
         uint256 dailyAllowance;
@@ -71,7 +89,7 @@ contract Wallet {
 
         require(getBalance() > dailyAllowance, "Insufficient ETH balance");
 
-        emit Withdrew(owner, dailyAllowance);
+        emit Withdrew(msg.sender, dailyAllowance);
 
         (bool sent, bytes memory data) = owner.call{value: dailyAllowance}("");
         require(sent, "Failed to send Ether");
@@ -79,9 +97,14 @@ contract Wallet {
         return true;
     }
 
+    // Will push (add) the payee and delete older ones if maxPayee reched.
+    function addPayee(address payable _recipient) public onlyOwner {
+        payee1 = _recipient;
+    }
+
     // Determines if 24h have passed since last withdrawal.
-    function _isOncePerDay() private view returns (bool) {
-        if (lastWithdrawTimestamp > (block.timestamp - 1 days)) {
+    function _isOncePerDay(address payee) private view returns (bool) {
+        if (lastWithdrawTimestamp[payee] > (block.timestamp - 1 days)) {
             return false;
         }
         return true;
@@ -95,7 +118,7 @@ contract Wallet {
      * Returns the latest price
      */
     function _getLatestPrice() private pure returns (int) {
-        // stub ther return until I figure out oracles
+        // stub the return until I figure out oracles & testing
         return 315539418212;
         // (
         //     uint80 roundID,
