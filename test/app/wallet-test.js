@@ -332,7 +332,7 @@ describe('Wallet', function () {
       }
       expect(errorHappened).to.be.true;
     });
-    it('will overwrite payee if called again', async function () {
+    it('will overwrite payee if called again, new payee can receive', async function () {
       const res = await this.wallet.addPayee(this.random1.address);
       await res.wait();
       const res2 = await this.wallet.addPayee(this.random2.address);
@@ -352,6 +352,24 @@ describe('Wallet', function () {
       await this.wallet.connect(this.random2).receiveAllowance();
 
       await payeePromise;
+    });
+    it('will overwrite payee if called again, old payee cannot receive', async function () {
+      const res = await this.wallet.addPayee(this.random1.address);
+      await res.wait();
+      const res2 = await this.wallet.addPayee(this.random2.address);
+      await res2.wait();
+
+      let errorHappened = false;
+      try {
+        const res3 = await this.wallet.connect(this.random1).receiveAllowance();
+        await res3.wait();
+      } catch (ex) {
+        errorHappened = true;
+        expect(ex.message).to.equal(
+          "VM Exception while processing transaction: reverted with reason string 'Only owner or payee can call this function.'"
+        );
+      }
+      expect(errorHappened).to.be.true;
     });
   });
 });
